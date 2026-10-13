@@ -10,9 +10,11 @@ dependencies = [
 
 [project.scripts]
 tender-matic-deidentify = "tender_matic.privacy_cli:main"
+tender-matic-corpus = "tender_matic.corpus_cli:main"
 
 [project.optional-dependencies]
 test = ["reportlab>=4.0"]
+retrieval = ["fastembed>=0.7"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

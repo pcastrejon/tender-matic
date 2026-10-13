@@ -49,11 +49,11 @@ This plan decomposes the Tender-matic prototype into independently testable phas
 
 **Objective:** Index approved historical proposals locally and retrieve useful evidence without Claude.
 
-**Deliverables:** corpus ingestion command/tool, local metadata and passage index, hybrid retrieval interface, opaque evidence IDs, and a small reviewed query/evidence set.
+**Deliverables:** local SQLite FTS5 index; local multilingual vector index using fastembed/MiniLM; corpus index/search CLI; opaque evidence IDs; separate local citation resolution; a small reviewed query/evidence set.
 
-**Independent tests:** synthetic proposal corpus and fixed queries; expected evidence in top results; metadata filtering; equal evidentiary treatment; duplicate/reprocessing behavior; ensure customer identity is absent from tool responses after privacy processing.
+**Independent tests:** synthetic proposal corpus and fake local embeddings; lexical and semantic ranking; local-only citation resolution; equal evidentiary treatment; duplicate indexing; reject partial documents; no source path in retrieval results.
 
-**Exit criteria:** reviewers can trace retrieved passages to local source locations; retrieval errors and empty results are explicit; no claim of current capability is introduced by search ranking.
+**Exit criteria:** reviewers can resolve opaque evidence IDs to local source locations; retrieval errors and empty results are explicit; proposal dates do not affect relevance ranking; no claim of current capability is introduced by search ranking. Real corpus quality remains unverified until a reviewed sample set is available.
 
 ## Phase 4: Tender Requirement Analysis with Claude
 

@@ -62,3 +62,19 @@ Run the isolated suite with:
 ```bash
 python -m unittest discover -s tests -v
 ```
+
+## Phase 3 Local Proposal Corpus
+
+Index only fully parsed proposal artifacts; partial artifacts are rejected as capability evidence. Install local semantic-retrieval support and build the SQLite corpus:
+
+```bash
+python -m pip install -e '.[retrieval,test]'
+python -m tender_matic.corpus_cli index --documents /path/to/proposals/parsed/documents --database /path/to/local/proposal-corpus.sqlite3 --metadata /path/to/local/proposal-metadata.json
+python -m tender_matic.corpus_cli search --database /path/to/local/proposal-corpus.sqlite3 --query "user login and identity management" --limit 5 --language en --proposal-date-from 2020-01-01
+```
+
+The optional metadata file is a local JSON map keyed by each phase 1 normalized document's `document_id`; accepted fields are an ISO `proposal_date` and a `language` code. For example: `{"documents":{"<document-id>":{"proposal_date":"2024-02-20","language":"en"}}}`. Do not add customer names or other identifiers to this sidecar. Metadata filters restrict which documents are candidates but never increase a proposal's rank or evidentiary authority.
+
+The index combines SQLite FTS5 lexical search with local `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` vectors using reciprocal-rank fusion. The model weights (about 0.22 GB) are downloaded to the local cache on first use; proposal text and query text are embedded and searched locally, not sent to an embedding API. The SQLite file contains proposal passage text and local paths, so it must remain company-controlled and must not be committed.
+
+Search results include opaque evidence IDs, passage text, and scores. Source path, page/section, date, and language are resolved in a separate local citation lookup; do not pass raw result text to Claude. The phase 2 privacy review must approve any excerpt before it can cross that boundary. Proposal dates are citation context only and do not increase evidence rank. An approved real proposal corpus and reviewer-labeled relevance queries are still needed to assess retrieval quality; synthetic tests do not establish production recall or precision.
