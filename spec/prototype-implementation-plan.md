@@ -39,11 +39,11 @@ This plan decomposes the Tender-matic prototype into independently testable phas
 
 **Objective:** Ensure source content cannot reach Claude before local minimization and customer-identifier checks.
 
-**Deliverables:** direct-identifier detection/redaction, configurable tokenization where useful, indirect-identifier review path, outbound allow/deny decision, and privacy audit metadata.
+**Deliverables:** local `LocalDeidentifier`; configured identifier registry; direct-pattern redaction; local-only token map; safe outbound excerpt type; attended CLI with explicit human-review release gate.
 
-**Independent tests:** synthetic names, addresses, contacts, IDs, URLs, filenames, metadata, OCR text, and indirect-identifier combinations; ensure uncertain cases fail closed; inspect serialized tool responses and logs for raw identifiers.
+**Independent tests:** synthetic names, addresses, contacts, IDs, URLs, IPs, and potential locations; ensure the CLI writes no outbound file without exact reviewer confirmation; inspect serialized outbound excerpts to verify they contain only sanitized text and never the local token map.
 
-**Exit criteria:** known direct-identifier fixtures never appear in outbound payloads; uncertain cases are blocked; identity mappings remain local; an operator can resolve a block without silently bypassing the gate.
+**Exit criteria:** known direct-identifier fixtures never appear in outbound excerpts; every release requires explicit human review; identity mappings remain local; no API client is wired to bypass the gate.
 
 ## Phase 3: Historical Proposal Corpus and Local RAG
 

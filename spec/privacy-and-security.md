@@ -27,6 +27,14 @@ Before each Claude request, a company-controlled service should:
 
 De-identification is not assumed to be perfect. The policy is fail closed. Uncertain content must not be sent until reviewed or further minimized.
 
+### Phase 2 Prototype Behavior
+
+The local `LocalDeidentifier` currently redacts configured customer values plus common email, URL, phone, IP-address, labeled business-ID, and some English/Spanish location patterns. The identifier registry and token-to-value map are local-only. The outbound object contains only sanitized text; source paths, filenames, and the local mapping are not included.
+
+Rule-based detection is not comprehensive, especially for indirect identification. Therefore every excerpt remains blocked until a human reviews the original and sanitized content in context and explicitly confirms that no customer identifier remains. This is an attended prototype control, not a claim of automated anonymization. Do not use real material with the prototype until the registry is populated and the reviewer workflow is in place.
+
+The attended review command is `tender-matic-deidentify --input <excerpt.txt> --identifiers <local-registry.json> --output <new-outbound.json>`. It prints only the sanitized preview and finding categories, and creates a JSON object containing only `text` after the operator types `APPROVE`. It refuses an existing output path and never writes the local token map to the outbound file.
+
 ## Outbound and Output Controls
 
 - Send only minimum necessary, de-identified excerpts, not entire documents by default.
