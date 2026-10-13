@@ -29,11 +29,11 @@ This plan decomposes the Tender-matic prototype into independently testable phas
 
 **Objective:** Turn files in an input folder into normalized, traceable text without calling Claude.
 
-**Deliverables:** file manifest, parser adapters for agreed formats, normalized document/passages with page or section references, and extraction warnings.
+**Deliverables:** local CLI; JSON file manifest; normalized document/passages with page, line, paragraph, or table-cell references; explicit parse/OCR/unsupported-format warnings. Initial adapters cover TXT, Markdown, text-layer PDF, and DOCX.
 
-**Independent tests:** representative synthetic PDF/Word/text fixtures; empty, corrupt, encrypted, unsupported, and OCR-required files; stable source references; no network/model dependency.
+**Independent tests:** synthetic PDF/DOCX/text fixtures; invalid UTF-8, corrupt, encrypted, unsupported, and OCR-required inputs; stable source references; output-directory boundary; no network/model dependency.
 
-**Exit criteria:** supported fixtures parse reproducibly; failures are explicit; all extracted passages map to source locations. Confirm actual formats and languages by inspecting an approved sample corpus before choosing libraries.
+**Exit criteria:** supported fixtures parse reproducibly; failures are explicit; all extracted passages map to source locations. Inspect an approved sample corpus before deciding whether to add legacy DOC, OCR, more languages, or additional parsers. Scanned PDFs remain partial and require a later OCR decision.
 
 ## Phase 2: De-identification and Outbound Gate
 

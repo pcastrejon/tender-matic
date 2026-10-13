@@ -43,3 +43,22 @@ Each evidence record should include stable local document and passage IDs, sourc
 ## Data Quality and Lifecycle
 
 Detect empty, corrupted, encrypted, or unsupported files; disclose OCR use and low-confidence extraction; preserve table relationships and requirement numbering where possible; and allow correction or exclusion. Support reprocessing and superseding an indexed version while preserving an audit trail. Retention and deletion policies remain open decisions.
+
+## Phase 1 Implementation
+
+The current local intake implementation supports `.txt`, `.md`, text-layer `.pdf`, and `.docx`. It extracts line references for text/Markdown, page references for PDFs, and paragraph/table-cell/header/footer references for DOCX. Each file receives a status (`parsed`, `partial`, `unsupported`, or `failed`) and structured warnings. OCR, legacy `.doc`, language detection, and semantic retrieval are not implemented in this phase.
+
+Install the project and optional test fixture dependency, then run ingestion with separate input and output directories:
+
+```bash
+python -m pip install -e '.[test]'
+python -m tender_matic.ingest --input /path/to/tender/input --output /path/to/tender/parsed
+```
+
+The output directory contains `manifest.json` and `documents/<opaque-document-id>.json`. It must not overlap the source input directory. Ingestion performs no Claude/API or network calls. Artifacts contain parsed source text and relative file paths; keep them inside the company environment and do not send them to Claude before Phase 2 de-identification is implemented and approved.
+
+Run the isolated suite with:
+
+```bash
+python -m unittest discover -s tests -v
+```
