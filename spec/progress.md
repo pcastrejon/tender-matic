@@ -1,6 +1,6 @@
 # Progress and Handoff Checkpoint
 
-Last verified: 2026-10-14.
+Last verified: 2026-10-17.
 
 ## Purpose and Maintenance
 
@@ -26,7 +26,7 @@ Repository agent instructions in [../AGENTS.md](../AGENTS.md) require updating t
 | 2: Privacy gate | Local rule-based redactor and attended excerpt-review CLI implemented | Not automatic anonymization; manual review required for every release; no comprehensive audit/review provenance or end-to-end integration |
 | 3: Corpus/retrieval | SQLite FTS5 plus local multilingual embeddings, CLI, citations, model safeguards, and metadata filters implemented | Prototype-scale vector scan; lifecycle, context chunking, relevance calibration, and real-data evaluation remain open |
 | 4: Claude requirement analysis | Review-gated service, Messages API adapter, response validation, and synthetic tests implemented | No interactive review CLI or integrated workflow; live provider configuration and approval remain unverified |
-| 5: Matching/gaps/questions/risks | Not started | Depends on structured requirements and retrieval/privacy integration |
+| 5: Matching/gaps/questions/risks | Evidence matrix, status/reference validation, review gates, and synthetic tests implemented | Caller supplies retrieval candidates and human review callbacks; no corpus orchestration or semantic quality evaluation |
 | 6: Markdown proposal draft | Not started | Depends on validated analysis |
 | 7: Supervised rehearsal | Not started | Requires integration, approved provider configuration, and BID/security review |
 
@@ -41,7 +41,8 @@ The components are independently testable but are not yet an integrated prompt-t
 5. [../src/tender_matic/privacy.py](../src/tender_matic/privacy.py) and [../src/tender_matic/privacy_cli.py](../src/tender_matic/privacy_cli.py): `LocalDeidentifier.sanitize` returns sanitized text/findings requiring review; `authorize_for_outbound` requires reviewer confirmation. The CLI writes only `{"text": ...}` after exact `APPROVE`. The token map exists locally in memory and is not exported.
 6. [../src/tender_matic/corpus.py](../src/tender_matic/corpus.py) and [../src/tender_matic/corpus_cli.py](../src/tender_matic/corpus_cli.py): index fully parsed normalized proposals. `EvidenceMatch` has an opaque evidence ID, raw local text, and retrieval score; `resolve_citation` separately returns local source path/location/date/language. CLI search prints both raw passages and local citations: it is not a model-safe tool response.
 7. [../src/tender_matic/analysis.py](../src/tender_matic/analysis.py): `RequirementAnalyzer` accepts caller-selected tender excerpts, requires an explicit human reviewer callback for each exact excerpt, sends only approved text with opaque source IDs, and keeps locations in a local source-reference mapping. `ClaudeMessagesAdapter` calls the Messages API; returned JSON, confidence values, and source IDs are validated, and detected direct identifiers block the result.
-8. [testing-strategy.md](testing-strategy.md), [privacy-and-security.md](privacy-and-security.md), and tests under [../tests/test_phase0.py](../tests/test_phase0.py), [../tests/test_ingestion.py](../tests/test_ingestion.py), [../tests/test_privacy.py](../tests/test_privacy.py), [../tests/test_corpus.py](../tests/test_corpus.py), [../tests/test_analysis.py](../tests/test_analysis.py), and [../tests/test_live_analysis.py](../tests/test_live_analysis.py).
+8. [../src/tender_matic/matching.py](../src/tender_matic/matching.py): `EvidenceMatcher` validates requirement-specific evidence references, enforces gap/conflict rules, requires local privacy review of outbound excerpts and human acceptance of every assessment, and returns a matrix with local citations and warnings.
+9. [testing-strategy.md](testing-strategy.md), [privacy-and-security.md](privacy-and-security.md), and tests under [../tests/test_phase0.py](../tests/test_phase0.py), [../tests/test_ingestion.py](../tests/test_ingestion.py), [../tests/test_privacy.py](../tests/test_privacy.py), [../tests/test_corpus.py](../tests/test_corpus.py), [../tests/test_analysis.py](../tests/test_analysis.py), [../tests/test_live_analysis.py](../tests/test_live_analysis.py), and [../tests/test_matching.py](../tests/test_matching.py).
 
 ## Setup and Commands
 
@@ -81,6 +82,17 @@ git diff --check
 
 Results: focused phase 4 suite passed (13 tests); full suite passed (59 tests, 1 opt-in live test skipped); `git diff --check` reported no whitespace errors. Editor diagnostics reported no errors in the changed Python files. The live Claude test was not run, no live API request was made, and no real tender material was used.
 
+Phase 5 verification on 2026-10-17:
+
+```bash
+/home/pablo/tender-matic/.venv/bin/python -B -m unittest discover -s tests -p 'test_matching.py' -v
+/home/pablo/tender-matic/.venv/bin/python -B -m unittest discover -s tests -v
+/home/pablo/tender-matic/.venv/bin/python -m pip check
+git diff --check
+```
+
+Results: focused phase 5 suite passed (14 tests); full suite passed (73 tests, 1 opt-in live Claude test skipped); `pip check` reported no broken requirements; `git diff --check` was clean. Pylance reported no diagnostics in `matching.py`; the test file had only unused-parameter informational diagnostics. No Claude/API key, live provider call, or real company document was used.
+
 Earlier phase 3 verification on 2026-10-13: `pip check` reported no broken requirements; the real local fastembed adapter produced finite 384-dimensional vectors and ranked a synthetic authentication passage above payments for a login query. Model weights were downloaded to this machine's cache; that cache is not repository content. Those earlier checks were not repeated when writing this checkpoint.
 
 Local retrieval uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` via optional `fastembed`. Its installed model description reports 128 input tokens: long phase 1 passages need an explicit chunking/truncation strategy before claiming full semantic coverage. Unit tests use a deterministic fake embedder and do not measure model relevance quality.
@@ -88,20 +100,22 @@ Local retrieval uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v
 ## Known Limitations and Risks
 
 - Privacy rules cover configured values and selected patterns, not all names, addresses, languages, OCR errors, or indirect clues. Review is a caller-supplied boolean/CLI confirmation, not an authenticated or immutable approval. Future callers must not bypass it or confuse a plain JSON text file with verifiable privacy approval.
-- Phase 2 currently reviews standalone UTF-8 excerpts; it is not yet wired to phase 1 JSON passage selection or corpus retrieval. Phase 4 needs local provenance mapping and explicit review of the exact outgoing text.
+- Phase 2 currently reviews standalone UTF-8 excerpts; it is not yet wired to phase 1 JSON passage selection or corpus retrieval. Phases 4 and 5 require explicit caller-provided local review callbacks and are not attended interactive workflows.
 - Phase 4 is a Python service contract, not an interactive CLI or integrated runner. Callers must deliberately select/minimize tender excerpts, implement an attended callback that shows original and sanitized text with local provenance, and pass through all relevant extraction warnings. Configured-pattern output checks are not complete re-identification detection.
+- Phase 5 accepts candidate evidence grouped by requirement; it does not call `CorpusIndex.search` or manage retrieval thresholds. The mandatory assessment-review callback is the semantic evidence check; no automated entailment method or labeled evaluation set exists. A rejected or unsupported assessment is not returned as an accepted evidence matrix.
 - The Claude adapter and synthetic live-test harness are implemented, but provider terms, approved model selection, local API-key setup, and a live request have not been verified. No real content may be used before those approvals.
 - The normalized corpus has paths and unredacted text. SQLite, logs, CLI output, and local data files must not be sent wholesale to Claude or committed. File exclusion rules are not a complete data-loss prevention system.
 - Re-indexing an identical document ID skips it; this is not full revision replacement, deletion, or metadata-update support. Approval of delivered proposals is an operator responsibility, not inferred from extraction status `parsed`.
-- Vector retrieval currently ranks available candidates without a calibrated relevance cutoff. A returned neighbor is not proof of support or compliance; irrelevant/no-support cases still need evidence assessment. Relevance/conflict handling is not phase 5 implementation.
+- Vector retrieval currently ranks available candidates without a calibrated relevance cutoff. A returned neighbor is not proof of support or compliance; irrelevant/no-support cases still need evidence assessment.
 - Raw SQL metadata-filter construction and the CLI error paths require integration coverage beyond existing tests; unit success is not an end-to-end guarantee. Improve touched paths when extending them, rather than treating the current baseline as production-certified.
 - No approved representative corpus, reviewer-labeled real query set, security sign-off, API configuration, or live-provider validation has been recorded.
 
-## Next Task: Phase 5
+## Next Task: Phase 6
 
-After user authorization, implement evidence matching, gaps, clarification questions, and risks as a separately testable phase using synthetic proposals and requirements. Preserve equal evidentiary treatment, mark unsupported requirements as gaps, and surface conflicts rather than resolving them by recency. Phase 4 does not itself authorize a live Claude test or the use of real tender content.
+After user authorization, implement the local Markdown draft renderer for validated Phase 4/5 outputs. Include explicit gaps, conflicts, questions, and risks; resolve opaque source references locally into citations; validate required sections and output-path boundaries; and test with synthetic golden fixtures. Do not add real customer content or assume that phases 4/5 authorize a live Claude request.
 
 ## Checkpoint History
 
 - 2026-10-14: Established this handoff checkpoint after phases 0-3; re-ran 45 tests successfully. Added persistent repository instructions to update progress after subsequent phase work and corrected stale MCP guidance in the documentation index.
 - 2026-10-14: Implemented Phase 4 review-gated requirement analysis, local source mapping, Claude Messages API adapter, strict structured-response checks, and an opt-in synthetic-only live test. Focused suite passed (13 tests); full suite passed (59 tests, 1 live test skipped). No live API request or real document use.
+- 2026-10-17: Implemented Phase 5 evidence matching, strict citation/schema checks, gap/conflict rules, local privacy review, mandatory human assessment confirmation, and synthetic tests. Focused suite passed (14 tests); full suite passed (73 tests, 1 live test skipped). No API key or live request was needed.
