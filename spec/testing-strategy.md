@@ -30,6 +30,8 @@ Use a small approved set of synthetic tender passages to validate Claude connect
 
 Run the full workflow with the accompanying BID team on approved material only after privacy and provider gates are met. Compare with a reviewer-prepared reference and record corrections, timing, and incomplete extraction.
 
+The local synthetic orchestration replay is covered by `python -B -m unittest discover -s tests -p 'test_rehearsal.py' -v`. It verifies intermediate artifacts and privacy gates without network access; it does not replace attended review or live-provider approval. See [phase-7-rehearsal.md](phase-7-rehearsal.md) for the current status and gated procedure.
+
 ## Required Test Scenarios
 
 - Supported, unsupported, empty, corrupt, encrypted, and OCR-dependent files.

@@ -95,6 +95,8 @@ This plan decomposes the Tender-matic prototype into independently testable phas
 
 **Exit criteria:** no customer identifier crosses the outbound boundary; source traceability and gap behavior meet agreed acceptance; the operator can identify incomplete processing; BID approves the prototype for its narrowly scoped demonstration.
 
+**Current evidence:** automated synthetic replay and local artifact checks are implemented. Attended BID review, live-provider approval, customer-material clearance, and go/no-go sign-off remain pending; see [phase-7-rehearsal.md](phase-7-rehearsal.md).
+
 ## Cross-Phase Contracts
 
 Use versioned, machine-readable artifacts between phases: document manifest, normalized passages, sanitized excerpts, requirement records, evidence records, analysis result, and Markdown output. Each artifact carries opaque IDs and source locations. Tests for a phase consume checked-in synthetic fixtures matching the prior phase's contract, so a phase can be developed and run independently. Do not check real tenders or proposals into the source repository.

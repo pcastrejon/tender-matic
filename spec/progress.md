@@ -27,10 +27,10 @@ Repository agent instructions in [../AGENTS.md](../AGENTS.md) require updating t
 | 3: Corpus/retrieval | SQLite FTS5 plus local multilingual embeddings, CLI, citations, model safeguards, and metadata filters implemented | Prototype-scale vector scan; lifecycle, context chunking, relevance calibration, and real-data evaluation remain open |
 | 4: Claude requirement analysis | Review-gated service, Messages API adapter, response validation, and synthetic tests implemented | No interactive review CLI or integrated workflow; live provider configuration and approval remain unverified |
 | 5: Matching/gaps/questions/risks | Evidence matrix, status/reference validation, review gates, and synthetic tests implemented | Caller supplies retrieval candidates and human review callbacks; no corpus orchestration or semantic quality evaluation |
-| 6: Markdown proposal draft | Markdown renderer, citation resolution, warning/gap/conflict sections, and guarded writer implemented | Not yet integrated into a complete workflow; output is a local draft and still needs BID approval |
-| 7: Supervised rehearsal | Not started | Requires integration, approved provider configuration, and BID/security review |
+| 6: Markdown proposal draft | Markdown renderer, citation resolution, warning/gap/conflict sections, and guarded writer implemented | Output is a local draft and still needs BID approval |
+| 7: Supervised rehearsal | Synthetic local orchestration and replay implemented | Attended BID rehearsal, provider/security approvals, approved material, reviewer comparison, cost/latency observations, and go/no-go remain pending |
 
-The components are independently testable but are not yet an integrated prompt-to-proposal workflow.
+Phases 1 and 3–6 are connected by a bounded local orchestration service for synthetic replay. There is no interactive review CLI or approved live/customer-material workflow.
 
 ## Component Contracts and Reading Order
 
@@ -43,7 +43,8 @@ The components are independently testable but are not yet an integrated prompt-t
 7. [../src/tender_matic/analysis.py](../src/tender_matic/analysis.py): `RequirementAnalyzer` accepts caller-selected tender excerpts, requires an explicit human reviewer callback for each exact excerpt, sends only approved text with opaque source IDs, and keeps locations in a local source-reference mapping. `ClaudeMessagesAdapter` calls the Messages API; returned JSON, confidence values, and source IDs are validated, and detected direct identifiers block the result.
 8. [../src/tender_matic/matching.py](../src/tender_matic/matching.py): `EvidenceMatcher` validates requirement-specific evidence references, enforces gap/conflict rules, requires local privacy review of outbound excerpts and human acceptance of every assessment, and returns a matrix with local citations and warnings.
 9. [../src/tender_matic/proposal.py](../src/tender_matic/proposal.py): `render_markdown` turns validated phase 4/5 output into a Markdown draft with stable local citation labels, visible gaps/conflicts/questions/risks/warnings, and escaped untrusted text. `write_markdown` confines output under the caller-selected root and refuses overwrite.
-10. [testing-strategy.md](testing-strategy.md), [privacy-and-security.md](privacy-and-security.md), and tests under [../tests/test_phase0.py](../tests/test_phase0.py), [../tests/test_ingestion.py](../tests/test_ingestion.py), [../tests/test_privacy.py](../tests/test_privacy.py), [../tests/test_corpus.py](../tests/test_corpus.py), [../tests/test_analysis.py](../tests/test_analysis.py), [../tests/test_live_analysis.py](../tests/test_live_analysis.py), [../tests/test_matching.py](../tests/test_matching.py), and [../tests/test_proposal.py](../tests/test_proposal.py).
+10. [phase-7-rehearsal.md](phase-7-rehearsal.md): current synthetic evidence, gated attended procedure, artifacts, and limitations.
+11. [testing-strategy.md](testing-strategy.md), [privacy-and-security.md](privacy-and-security.md), and tests under [../tests/test_phase0.py](../tests/test_phase0.py), [../tests/test_ingestion.py](../tests/test_ingestion.py), [../tests/test_privacy.py](../tests/test_privacy.py), [../tests/test_corpus.py](../tests/test_corpus.py), [../tests/test_analysis.py](../tests/test_analysis.py), [../tests/test_live_analysis.py](../tests/test_live_analysis.py), [../tests/test_matching.py](../tests/test_matching.py), [../tests/test_proposal.py](../tests/test_proposal.py), and [../tests/test_rehearsal.py](../tests/test_rehearsal.py).
 
 ## Setup and Commands
 
@@ -57,6 +58,7 @@ python3.12 -m venv .venv
 .venv/bin/tender-matic-deidentify --input /company-local/excerpt.txt --identifiers /company-local/identifiers.json --output /company-local/reviewed.json
 .venv/bin/tender-matic-corpus index --documents /company-local/proposals/parsed/documents --database /company-local/corpus.sqlite3
 .venv/bin/tender-matic-corpus search --database /company-local/corpus.sqlite3 --query "user authentication" --limit 5
+.venv/bin/python -B -m unittest discover -s tests -p 'test_rehearsal.py' -v
 ```
 
 The identifier registry maps local sensitive values to category labels, for example `{"Synthetic Customer":"CUSTOMER_NAME"}`. Real values stay company-local. Optional corpus metadata is keyed by normalized document ID with `language` and ISO `proposal_date`; see [ingestion-and-retrieval.md](ingestion-and-retrieval.md).
@@ -105,6 +107,17 @@ git diff --check
 
 Results: focused phase 6 suite passed (8 tests); full suite passed (81 tests, 1 opt-in live Claude test skipped); `pip check` reported no broken requirements; `git diff --check` was clean. Pylance reported no diagnostics in `proposal.py` or `test_proposal.py`. No Claude/API key, live request, or real customer material was used.
 
+Phase 7 synthetic replay verification on 2026-10-17:
+
+```bash
+/home/pablo/tender-matic/.venv/bin/python -B -m unittest discover -s tests -p 'test_rehearsal.py' -v
+/home/pablo/tender-matic/.venv/bin/python -B -m unittest discover -s tests -v
+/home/pablo/tender-matic/.venv/bin/python -m pip check
+git diff --check
+```
+
+Results: focused replay suite passed (5 tests); full suite passed (86 tests, 1 opt-in live Claude test skipped); `pip check` reported no broken requirements; `git diff --check` was clean. The new untracked Python and runbook files were separately checked with `git diff --no-index --check` and produced no whitespace diagnostics (the command returns 1 because each file differs from `/dev/null`). Pylance reported no diagnostics in `rehearsal.py`; `test_rehearsal.py` had only informational unused-variable/unused-parameter notices. No Claude/API key, live request, or real customer material was used. The skipped live test and missing provider/BID/security approvals mean Phase 7 is not qualified as a supervised rehearsal.
+
 Earlier phase 3 verification on 2026-10-13: `pip check` reported no broken requirements; the real local fastembed adapter produced finite 384-dimensional vectors and ranked a synthetic authentication passage above payments for a login query. Model weights were downloaded to this machine's cache; that cache is not repository content. Those earlier checks were not repeated when writing this checkpoint.
 
 Local retrieval uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` via optional `fastembed`. Its installed model description reports 128 input tokens: long phase 1 passages need an explicit chunking/truncation strategy before claiming full semantic coverage. Unit tests use a deterministic fake embedder and do not measure model relevance quality.
@@ -117,15 +130,16 @@ Local retrieval uses `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v
 - Phase 5 accepts candidate evidence grouped by requirement; it does not call `CorpusIndex.search` or manage retrieval thresholds. The mandatory assessment-review callback is the semantic evidence check; no automated entailment method or labeled evaluation set exists. A rejected or unsupported assessment is not returned as an accepted evidence matrix.
 - Phase 6 renders validated objects supplied by the caller; it does not run phases 4/5, certify the privacy of indirect identifiers, or submit/approve a proposal. The caller must keep the output under company controls because resolved local source paths appear in citations. Markdown escaping protects formatting contexts, not confidential content.
 - The Claude adapter and synthetic live-test harness are implemented, but provider terms, approved model selection, local API-key setup, and a live request have not been verified. No real content may be used before those approvals.
+- Phase 7 currently provides a Python orchestration service and a synthetic fake-model replay, not a user-facing or attended review workflow. A failed run may leave parsed source artifacts but does not write a failure report; those partial artifacts remain sensitive and must be handled locally. Live-provider cost/latency, reference-output comparison, reviewer feedback, and BID go/no-go remain unrecorded.
 - The normalized corpus has paths and unredacted text. SQLite, logs, CLI output, and local data files must not be sent wholesale to Claude or committed. File exclusion rules are not a complete data-loss prevention system.
 - Re-indexing an identical document ID skips it; this is not full revision replacement, deletion, or metadata-update support. Approval of delivered proposals is an operator responsibility, not inferred from extraction status `parsed`.
 - Vector retrieval currently ranks available candidates without a calibrated relevance cutoff. A returned neighbor is not proof of support or compliance; irrelevant/no-support cases still need evidence assessment.
 - Raw SQL metadata-filter construction and the CLI error paths require integration coverage beyond existing tests; unit success is not an end-to-end guarantee. Improve touched paths when extending them, rather than treating the current baseline as production-certified.
 - No approved representative corpus, reviewer-labeled real query set, security sign-off, API configuration, or live-provider validation has been recorded.
 
-## Next Task: Phase 7
+## Next Task: Complete the Phase 7 Approval Gate
 
-After user authorization, plan and implement the supervised end-to-end rehearsal gate: connect local ingestion, attended privacy review, retrieval, requirement analysis, evidence matching, and Markdown writing through a bounded local orchestration path. Start with synthetic replay fixtures and verify intermediate artifacts, traceability, privacy gates, incomplete processing, and safe output paths. Keep any live Claude rehearsal separate and blocked until provider terms, model/API configuration, and security approval are recorded; never use customer material without those approvals.
+Review the synthetic replay, then obtain documented provider/security/privacy and BID approval before arranging an attended rehearsal on specifically cleared material. Record reviewer feedback, comparison results, timing/cost evidence, and a go/no-go decision in company-approved records. Keep live provider execution and all customer material blocked until those prerequisites are satisfied. No later implementation phase is started by this checkpoint.
 
 ## Checkpoint History
 
@@ -133,3 +147,4 @@ After user authorization, plan and implement the supervised end-to-end rehearsal
 - 2026-10-14: Implemented Phase 4 review-gated requirement analysis, local source mapping, Claude Messages API adapter, strict structured-response checks, and an opt-in synthetic-only live test. Focused suite passed (13 tests); full suite passed (59 tests, 1 live test skipped). No live API request or real document use.
 - 2026-10-17: Implemented Phase 5 evidence matching, strict citation/schema checks, gap/conflict rules, local privacy review, mandatory human assessment confirmation, and synthetic tests. Focused suite passed (14 tests); full suite passed (73 tests, 1 live test skipped). No API key or live request was needed.
 - 2026-10-17: Implemented Phase 6 Markdown rendering, local citation labels, explicit review sections, Markdown/HTML text escaping, consistency validation, and a path-confined no-overwrite writer. Focused suite passed (8 tests); full suite passed (81 tests, 1 live test skipped). No API key, live request, or real customer material was used.
+- 2026-10-17: Implemented Phase 7 local synthetic orchestration across ingestion, review-gated analysis, local retrieval/citation resolution, evidence matching, and Markdown drafting. Added versioned local analysis, evidence-matrix, and rehearsal-report artifacts plus a gated rehearsal runbook. Synthetic replay passed 5 focused tests; full-suite and final validation results are recorded below after completion. Attended BID/provider/security review and live processing remain blocked; no API key or `.env` placeholder was needed.
